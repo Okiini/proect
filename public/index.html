@@ -1,1 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Журнал посещаемости и успеваемости</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #fefefe;
+            color: #333;
+        }
 
+        h1 {
+            color: #4a4a4a;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        label, select {
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+
+        select {
+            padding: 5px;
+        }
+
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            width: 90%;
+            max-width: 1200px;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #e6f7ff;
+            color: #333;
+        }
+
+        td {
+            background-color: #f9f9f9;
+        }
+
+        td input, td select {
+            width: 80%;
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        #date-picker-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #add-date-button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #cde8d6;
+            border: 1px solid #b2d8c4;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #add-date-button:hover {
+            background-color: #a9d1bb;
+        }
+
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: #9fc69f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #8ab58a;
+        }
+
+        .date-header {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .date-header button {
+            margin-left: 10px;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 5px;
+        }
+
+        .date-header button:hover {
+            background-color: #e65c5c;
+        }
+
+        th, td {
+            width: 100px;
+        }
+
+        th:first-child, td:first-child {
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Журнал посещаемости и успеваемости</h1>
+
+    <label for="group-select">Выберите группу:</label>
+    <select id="group-select">
+        <option value="">-- Выберите группу --</option>
+    </select>
+
+    <div id="date-picker-container">
+        <label for="date-picker">Добавить дату занятия:</label>
+        <input type="date" id="date-picker">
+        <button id="add-date-button">Добавить</button>
+    </div>
+
+    <table id="journal-table">
+        <thead>
+            <tr>
+                <th>Имя студента</th>
+                <!-- Динамически добавляемые даты -->
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="button-container">
+        <button id="save-button">Сохранить изменения</button>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:3000";
+
+        let dates = [];
+
+        // Загрузка групп
+        async function loadGroups() {
+            try {
+                const response = await fetch(`${API_URL}/groups`);
+                const groups = await response.json();
+                const groupSelect = document.getElementById('group-select');
+                groups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.name;
+                    option.textContent = group.name;
+                    groupSelect.appendChild(option);
+                });
+
+                groupSelect.addEventListener('change', async () => {
+                    const selectedGroup = groupSelect.value;
+                    if (selectedGroup) {
+                        await loadStudents(selectedGroup);
+                    } else {
+                        clearTable();
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка при загрузке групп:', error);
+            }
+        }
+
+        // Очистка таблицы
+        function clearTable() {
+            document.querySelector('#journal-table tbody').innerHTML = '';
+        }
+
+        // Загрузка студентов группы
+        async function loadStudents(groupName) {
+            try {
+                const response = await fetch(`${API_URL}/groups/${groupName}`);
+                const students = await response.json();
+
+                renderTableHeaders();
+                renderTableBody(students);
+            } catch (error) {
+                console.error('Ошибка при загрузке студентов:', error);
+            }
+        }
+
+        function deleteDate(dateToDelete) {
+    // Удаляем дату из массива
+    dates = dates.filter(date => date !== dateToDelete);
+
+    // Перерисовываем заголовки таблицы
+    renderTableHeaders();
+    renderTableBody(students);
+    // Обновляем строки таблицы
+    const rows = document.querySelectorAll('#journal-table tbody tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Удаляем ячейку, связанную с датой
+        dates.forEach((date, index) => {
+            if (date === dateToDelete) {
+                cells[index + 1]?.remove(); // Пропускаем ячейку имени
+            }
+        });
+    });
+}
+        // Рендер заголовков таблицы
+        function renderTableHeaders() {
+    const headerRow = document.querySelector('#journal-table thead tr');
+    headerRow.innerHTML = '<th>Имя студента</th>'; // Начальный столбец для имени студента
+
+    dates.forEach(date => {
+        const dateHeader = document.createElement('th');
+        const dateHeaderContainer = document.createElement('div');
+        dateHeaderContainer.className = 'date-header';
+
+        const dateText = document.createElement('span');
+        dateText.textContent = date;
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Удалить';
+        deleteButton.addEventListener('click', () => {
+            deleteDate(date);
+        });
+
+        dateHeaderContainer.appendChild(dateText);
+        dateHeaderContainer.appendChild(deleteButton);
+        dateHeader.appendChild(dateHeaderContainer);
+
+        headerRow.appendChild(dateHeader);
+    });
+}
+
+function renderTableBody(students) {
+    const tableBody = document.querySelector('#journal-table tbody');
+    tableBody.innerHTML = '';
+
+    students.forEach(student => {
+        const row = document.createElement('tr');
+        const nameCell = document.createElement('td');
+        nameCell.textContent = student.name;
+        row.appendChild(nameCell);
+
+        dates.forEach(date => {
+            const cell = document.createElement('td');
+            const attendanceSelect = document.createElement('select');
+            ['Присутствовал', 'Отсутствовал'].forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status;
+                attendanceSelect.appendChild(option);
+            });
+
+            const gradeInput = document.createElement('input');
+            gradeInput.type = 'number';
+            gradeInput.min = 0;
+            gradeInput.max = 5;
+
+            attendanceSelect.value = student.attendance?.[date] || 'Присутствовал';
+            gradeInput.value = student.grades?.[date] || '';
+
+            cell.appendChild(attendanceSelect);
+            cell.appendChild(gradeInput);
+            row.appendChild(cell);
+        });
+
+        tableBody.appendChild(row);
+    });
+}
+
+
+        // Добавление новой даты
+document.getElementById('add-date-button').addEventListener('click', () => {
+    const datePicker = document.getElementById('date-picker');
+    const newDate = datePicker.value;
+
+    if (newDate && !dates.includes(newDate)) {
+        dates.push(newDate); // Добавляем дату в массив
+        renderTableHeaders(); // Обновляем заголовки таблицы
+        renderTableBody([]); // Перерисовываем тело таблицы (чтобы отобразить новую дату)
+    } else if (dates.includes(newDate)) {
+        alert('Дата уже добавлена.');
+    } else {
+        alert('Выберите дату.');
+    }
+});
+        // Сохранение изменений
+        document.getElementById('save-button').addEventListener('click', async () => {
+            const groupName = document.getElementById('group-select').value;
+            const rows = document.querySelectorAll('#journal-table tbody tr');
+
+            rows.forEach(async (row, index) => {
+                const cells = row.querySelectorAll('td');
+                const studentName = cells[0].textContent;
+
+                dates.forEach(async (date, dateIndex) => {
+                    const attendance = cells[dateIndex + 1]?.querySelector('select')?.value;
+                    const grade = cells[dateIndex + 1]?.querySelector('input')?.value;
+                    await fetch(`${API_URL}/update-student`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            groupName,
+                            studentName,
+                            date,
+                            attendance,
+                            grade: grade ? parseFloat(grade) : null
+                        })
+                    });
+                });
+            });
+
+            alert('Изменения сохранены!');
+        });
+
+        loadGroups();
+    </script>
+</body>
+</html>
